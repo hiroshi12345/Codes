@@ -1,0 +1,49 @@
+import pandas as pd
+import pyomo.environ as pyo
+from pyomo.environ import *
+from pyomo.opt import SolverFactory
+
+#dados entrada
+T = [1,2,3] # Talhões
+V = [1,2,3,4,5] #Veículos
+t = len(T) # tamanho da variável de Talhões
+v = len(V) # tamanho da variável de veículos
+i = 0 #quer dizer usina
+j = 0
+c = [[0,4,3],[7,0,8],[2,9,0]]# Custo entre dois pontos i,j [ coleta ou recepção]
+d = [56,47,60] # Número de fardos por talhão
+D = 520 # capacidade do depósito da usina
+C = [15,26,24]
+w = 700 # peso por talhão
+peso = 10000 # Peso por eixo isolado
+
+model = pyo.ConcreteModel()
+
+model.x = pyo.Var(range(t),range(t),range(v), bounds=(0,1))
+model.y = pyo.Var(range(t),range(v), bounds=(0,None))
+#model.e = pyo.Var(range(t),range(v), bounds=(0,None))
+x = model.x
+y = model.y
+
+#restricoes
+model.talhao =      pyo.Constraint(expr = sum(y[(i,j)] for i in range(0,t) for j in range(0,v))==d[i])
+model.caminhao =    pyo.Constraint(expr = sum(y[(i,j)] for i in range(0,t) for j in range(0,v)) <= C[j])
+model.dependencia = pyo.Constraint(expr = y[(i,j)] <= sum(d[j]*x[(i,j,k)] for i in range(0,t) for j in range(0,t) for k in range(0,v)))
+model.fluxo =       pyo.Constraint(expr = sum(x[(i,p,k)] for i in range(0,t) for p in range(0,t) for k in range(0,v))-sum(x[(p,j,k)] for p in range(0,t) for j in range(0,t) for k in range(0,v)) == 0)
+
+
+#obj
+model.obj = pyo.Objective(expr = sum(c[i][j]*x[(i,j,k)] for i in range(0,t) for j in range(0,t) for k in range(0,v)))
+
+opt = SolverFactory('glpk')
+resultado = opt.solve(model)
+
+model.pprint()
+
+resultado.write()
+#ABAIXO SÃO TENTATIVAS DE IMPRIMIR A FUNÇÃO OBJETIVO.
+#print('Função Objetivo = ', model.obj())
+
+#resultado = [pyo.value(x[(i,j,k)]) for i in range(0,t) for j in range(0,t) for k in range(0,v)]
+
+#dados_ger['geracao'] = [pyo.value(Pg[g]) for g in dados_ger.id]
